@@ -1,0 +1,67 @@
+numSTAs = [1, 4, 8, 12, 16, 20];
+throughput80211 = zeros(size(numSTAs));
+
+rng(11,"combRecursive");
+function throughput = simulateNetwork80211Toolbox(numSTA)
+    CZAS_SYM = 0.1;
+    
+    SymulatorSieci = wirelessNetworkSimulator.init;
+
+
+
+    %RTS on
+    APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0);
+    STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0);
+
+
+    %RTS/CTS off
+    %APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0,DisableRTS=true); 
+    %STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0,DisableRTS=true);
+
+
+    %CWMin/Max
+    %APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, CWMin=15, CWMax=1023); 
+    %STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, CWMin=15, CWMax=1023);
+        
+    %Agregacja A-MPDU
+    %APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, AggregateHTMPDU=true); 
+    %STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, AggregateHTMPDU=true);
+
+    AP = wlanNode(Name="AP", DeviceConfig=APCfg, Position=[0 0 0]);
+
+    stacje = wlanNode.empty(numSTA, 0);
+    for i = 1:numSTA
+        stacje(i) = wlanNode(Name="STA" + string(i), DeviceConfig=STCfg, Position=[0, 0, 0]); 
+    end
+
+    addNodes(SymulatorSieci, [AP, stacje]);
+
+    associateStations(AP, stacje, FullBufferTraffic="on");
+
+    run(SymulatorSieci, CZAS_SYM);
+
+    APStats = statistics(AP);
+    STStats = arrayfun(@statistics, stacje);
+
+    accessPointThroughput = (APStats.MAC.TransmittedPayloadBytes * 8) / CZAS_SYM;
+    stationThroughput = sum(arrayfun(@(s) (s.MAC.TransmittedPayloadBytes * 8) / CZAS_SYM, STStats));
+
+    throughput = accessPointThroughput / (numSTA+1) / 1e6;
+end
+
+
+for idx = 1:length(numSTAs)
+    numSTA = numSTAs(idx);
+    throughput80211(idx) = simulateNetwork80211Toolbox(numSTA);
+    fprintf('Number of STAs: %d, Throughput: %.2f Mb/s\n', numSTA, throughput80211(idx));
+end
+
+% Generate plot
+figure;
+plot(numSTAs, throughput80211, '-o', 'DisplayName', '802.11 with RTS/CTS');
+xlabel('Number of STAs');
+ylabel('Throughput [Mb/s]');
+legend('show');
+grid on;
+title('Zależność wartości Throughput w stosunku do ilości stacji z włączonym RTS/CTS');
+
