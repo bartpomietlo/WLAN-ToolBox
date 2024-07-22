@@ -9,9 +9,9 @@ function throughput = simulateNetwork80211Toolbox(numSTA)
 
 
 
-    %RTS on
-    APCfg = wlanDeviceConfig(Mode="AP", MCS=6, ChannelBandwidth=40000000, TransmitPower=30,RTSThreshold=0, DisableRTS=true, AggregateHTMPDU=false);
-    STCfg = wlanDeviceConfig(Mode="STA", MCS=6, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, DisableRTS=true, AggregateHTMPDU=false);
+    
+    APCfg = wlanDeviceConfig(Mode="AP", MCS=6, ChannelBandwidth=40000000, TransmitPower=30,RTSThreshold=0, DisableRTS=true, AggregateHTMPDU=false, CWMin=7, CWMax=1023);
+    STCfg = wlanDeviceConfig(Mode="STA", MCS=6, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, DisableRTS=true, AggregateHTMPDU=false, CWMin=7, CWMax=1023);
 
     AP = wlanNode(Name="AP", DeviceConfig=APCfg, Position=[0 0 0]);
 
@@ -23,7 +23,7 @@ function throughput = simulateNetwork80211Toolbox(numSTA)
     addNodes(SymulatorSieci, [AP, stacje]);
 
     for i = 1:numSTA
-        associateStations(AP, stacje(i)); % <-- Dodano asocjację STAs z AP
+        associateStations(AP, stacje(i));
     end
 
     for i = 1:numSTA
@@ -50,7 +50,6 @@ for idx = 1:length(numSTAs)
     fprintf('Number of STAs: %d, Throughput: %.2f Mb/s\n', numSTA, throughput80211(idx));
 end
 
-% Generate plot
 figure;
 plot(numSTAs, throughput80211, '-o', 'DisplayName', '802.11 with RTS/CTS');
 xlabel('Number of STAs');
