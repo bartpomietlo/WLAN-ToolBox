@@ -10,22 +10,8 @@ function throughput = simulateNetwork80211Toolbox(numSTA)
 
 
     %RTS on
-    APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0);
-    STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0);
-
-
-    %RTS/CTS off
-    %APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0,DisableRTS=true); 
-    %STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0,DisableRTS=true);
-
-
-    %CWMin/Max
-    %APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, CWMin=15, CWMax=1023); 
-    %STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, CWMin=15, CWMax=1023);
-        
-    %Agregacja A-MPDU
-    %APCfg = wlanDeviceConfig(Mode="AP", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, AggregateHTMPDU=true); 
-    %STCfg = wlanDeviceConfig(Mode="STA", MCS=11, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, AggregateHTMPDU=true);
+    APCfg = wlanDeviceConfig(Mode="AP", MCS=6, ChannelBandwidth=40000000, TransmitPower=30,RTSThreshold=0, DisableRTS=true, AggregateHTMPDU=false);
+    STCfg = wlanDeviceConfig(Mode="STA", MCS=6, ChannelBandwidth=40000000, TransmitPower=30, RTSThreshold=0, DisableRTS=true, AggregateHTMPDU=false);
 
     AP = wlanNode(Name="AP", DeviceConfig=APCfg, Position=[0 0 0]);
 
@@ -36,17 +22,25 @@ function throughput = simulateNetwork80211Toolbox(numSTA)
 
     addNodes(SymulatorSieci, [AP, stacje]);
 
-    associateStations(AP, stacje, FullBufferTraffic="on");
+    for i = 1:numSTA
+        associateStations(AP, stacje(i)); % <-- Dodano asocjację STAs z AP
+    end
+
+    for i = 1:numSTA
+        % Create traffic source for uplink
+        trafficSource = networkTrafficOnOff(DataRate=1e6, PacketSize=1024, OnTime=inf, OffTime=0);
+        addTrafficSource(stacje(i), trafficSource, DestinationNode=AP); % <-- Dodano źródło ruchu uplink
+    end
 
     run(SymulatorSieci, CZAS_SYM);
 
-    APStats = statistics(AP);
+    %APStats = statistics(AP);
     STStats = arrayfun(@statistics, stacje);
 
-    accessPointThroughput = (APStats.MAC.TransmittedPayloadBytes * 8) / CZAS_SYM;
-    stationThroughput = sum(arrayfun(@(s) (s.MAC.TransmittedPayloadBytes * 8) / CZAS_SYM, STStats));
+    %APThroughput = (APStats.MAC.TransmittedPayloadBytes * 8) / CZAS_SYM;
+    STAThroughput = sum(arrayfun(@(s) (s.MAC.TransmittedPayloadBytes * 8) / CZAS_SYM, STStats));
 
-    throughput = accessPointThroughput / (numSTA+1) / 1e6;
+    throughput = STAThroughput / 1e6;
 end
 
 
@@ -64,4 +58,3 @@ ylabel('Throughput [Mb/s]');
 legend('show');
 grid on;
 title('Zależność wartości Throughput w stosunku do ilości stacji z włączonym RTS/CTS');
-
